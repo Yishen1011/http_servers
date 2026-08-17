@@ -1,10 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	// "strconv"
 	"sync/atomic"
-	"strconv"
 )
 
 type apiConfig struct {
@@ -19,10 +20,10 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 }
 
 func (cfg *apiConfig) handlerMetrics(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Add("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	hitsInputs := "Hits: " + strconv.Itoa(int(cfg.fileserverHits.Load()))
-	w.Write([]byte(hitsInputs))
+	html := fmt.Sprintf("<html><body><h1>Welcome, Chirpy Admin</h1><p>Chirpy has been visited %d times!</p></body></html>", int(cfg.fileserverHits.Load()))
+	w.Write([]byte(html))
 }
 
 func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
@@ -41,9 +42,9 @@ func main(){
 	handler := http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))
 	srvMux.Handle("/app/", apiCfg.middlewareMetricsInc(handler))
 
-	srvMux.HandleFunc("GET /healthz", handlerFunc)
-	srvMux.HandleFunc("GET /metrics", apiCfg.handlerMetrics)
-	srvMux.HandleFunc("POST /reset", apiCfg.handlerReset)
+	srvMux.HandleFunc("GET /api/healthz", handlerFunc)
+	srvMux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
+	srvMux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
 
 	srv := &http.Server{
 		Handler: srvMux,
