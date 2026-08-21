@@ -4,12 +4,14 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/Yishen1011/http_servers/internal/database"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"sync/atomic"
+
+	"github.com/Yishen1011/http_servers/internal/database"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
