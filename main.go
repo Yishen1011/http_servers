@@ -1,17 +1,21 @@
 package main
 
 import (
-	"fmt"
-	"log"
+	"database/sql"
 	"encoding/json"
+	"fmt"
+	"github.com/Yishen1011/http_servers/internal/database"
+	"log"
 	"net/http"
-	// "strconv"
+	"os"
 	"strings"
 	"sync/atomic"
+	_ "github.com/lib/pq"
 )
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
+	db             *database.Queries
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -38,7 +42,22 @@ func main(){
 	const filepathRoot = "."
 	const port = "8080"
 
-	apiCfg := apiConfig{}
+	godotenv.Load()
+	dbURL := os.Getenv("DB_URL")
+	if dbURL == "" {
+		log.Fatal("DB_URL must be set")
+	}
+	dbConn, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		log.Fatalf("Error opening dbURL: %s", err)
+    }
+
+	dbQueries := database.New(dbConn)
+
+	apiCfg := apiConfig{
+		fileserverHits: atomic.Int32{},
+		db:             dbQueries,
+	}
 
 	srvMux := http.NewServeMux()
 	handler := http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))
@@ -120,9 +139,7 @@ func respondWithError(w http.ResponseWriter, code int, msg string) {
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
     data, err := json.Marshal(payload)
 	if err != nil {
-			// respondWithError(w, 400, "Something went wrong")
-			log.Printf("Error marshalling JSON: %s", err)
-			return
+		log.Fatalf("Error marshalling JSON: %s", err)
 	}
     w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(code)
