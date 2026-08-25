@@ -32,14 +32,17 @@ func main(){
 		log.Fatalf("Error opening dbURL: %s", err)
     }
 
-	envPlaform := os.Getenv("PLATFORM")
+	platform := os.Getenv("PLATFORM")
+	if platform == "" {
+		log.Fatal("In .env file PLATFORM must be set")
+	}
 
 	dbQueries := database.New(dbConn)
 
 	apiCfg := apiConfig{
 		fileserverHits: atomic.Int32{},
 		db:             dbQueries,
-		platform:       envPlaform,
+		platform:       platform,
 	}
 
 	srvMux := http.NewServeMux()
@@ -49,8 +52,8 @@ func main(){
 	srvMux.HandleFunc("GET /api/healthz", handlerReadiness)
 	srvMux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
 	srvMux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
-	srvMux.HandleFunc("POST /api/validate_chirp", handlerValidateChrip)
-	srvMux.HandleFunc("POST /api/users", apiCfg.handlerRegister)
+	srvMux.HandleFunc("POST /api/users", apiCfg.handlerCreateUser)
+	srvMux.HandleFunc("POST /api/chirps", apiCfg.handlerCreateChirp)
 
 	srv := &http.Server{
 		Handler: srvMux,

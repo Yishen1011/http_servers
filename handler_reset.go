@@ -3,13 +3,18 @@ package main
 import "net/http"
 
 func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
-	cfg.fileserverHits.Store(0)
 	if cfg.platform != "dev" {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("403 Forbidden"))
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte("Reset is only allowed in dev environment."))
+		return
 	}
-
-	cfg.db.DeleteUsers(r.Context())
+	cfg.fileserverHits.Store(0)
+	err := cfg.db.DeleteUsers(r.Context())
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Failed to reset the database: " + err.Error()))
+		return
+	}
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Reset"))
+	w.Write([]byte("Database reset to initial state."))
 }
