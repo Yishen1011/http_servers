@@ -15,6 +15,7 @@ import (
 type apiConfig struct {
 	fileserverHits atomic.Int32
 	db             *database.Queries
+	platform       string
 }
 
 func main(){
@@ -31,11 +32,14 @@ func main(){
 		log.Fatalf("Error opening dbURL: %s", err)
     }
 
+	envPlaform := os.Getenv("PLATFORM")
+
 	dbQueries := database.New(dbConn)
 
 	apiCfg := apiConfig{
 		fileserverHits: atomic.Int32{},
 		db:             dbQueries,
+		platform:       envPlaform,
 	}
 
 	srvMux := http.NewServeMux()
@@ -46,6 +50,7 @@ func main(){
 	srvMux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
 	srvMux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
 	srvMux.HandleFunc("POST /api/validate_chirp", handlerValidateChrip)
+	srvMux.HandleFunc("POST /api/users", apiCfg.handlerRegister)
 
 	srv := &http.Server{
 		Handler: srvMux,
