@@ -28,13 +28,13 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request){
     params := parameters{}
     err := decoder.Decode(&params)
     if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Something went wrong")
+		respondWithError(w, http.StatusInternalServerError, "Something went wrong", err)
 		return
     }
 
 	user, err := cfg.db.CreateUser(r.Context(), params.Email)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "User can't be created")
+		respondWithError(w, http.StatusInternalServerError, "User can't be created", err)
 		return
 	}
 
