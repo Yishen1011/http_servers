@@ -21,7 +21,6 @@ type Chirp struct {
 }
 
 func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request){
-
     type parameters struct {
         Body string `json:"body"`
 		UserID uuid.UUID `json:"user_id"`
@@ -75,7 +74,6 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 }
 
 func filterBadWords(msg string, badWords map[string]struct{}) string {
-
 	words := strings.Split(msg, " ")
 	for i, word := range words {
 		cleanedWord := strings.Trim(word, ".,!?;:()\"'")
@@ -90,7 +88,6 @@ func filterBadWords(msg string, badWords map[string]struct{}) string {
 }
 
 func (cfg *apiConfig) handlerListChirps(w http.ResponseWriter, r *http.Request){
-
 	dbChirps, err := cfg.db.GetChirps(r.Context())
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error: Listing Chirps", err)
@@ -113,7 +110,6 @@ func (cfg *apiConfig) handlerListChirps(w http.ResponseWriter, r *http.Request){
 }
 
 func (cfg *apiConfig) handlerGetChirp(w http.ResponseWriter, r *http.Request){
-
 	strChirpID := r.PathValue("chirpID")
 
 	chirpID, err := uuid.Parse(strChirpID)
