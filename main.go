@@ -66,6 +66,7 @@ func main(){
 	srvMux.HandleFunc("POST /api/login", apiCfg.handlerLogin)
 	srvMux.HandleFunc("POST /api/refresh", apiCfg.handlerRefreshToken)
 	srvMux.HandleFunc("POST /api/revoke", apiCfg.handlerRevokeToken)
+	srvMux.HandleFunc("PUT /api/users", apiCfg.handlerUpdateUser)
 
 	srv := &http.Server{
 		Handler: srvMux,
