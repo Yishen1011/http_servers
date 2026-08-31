@@ -147,3 +147,44 @@ func (cfg *apiConfig) handlerGetChirp(w http.ResponseWriter, r *http.Request){
 			UserID:      dbChirp.UserID,
 		})
 }
+
+func (cfg *apiConfig) handlerDeleteChirpFromID(w http.ResponseWriter, r *http.Request){
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Couldn't find JWT", err)
+		return
+	}
+
+	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Couldn't validate JWT", err)
+		return
+	}
+	
+	strChirpID := r.PathValue("chirpID")
+
+	chirpID, err := uuid.Parse(strChirpID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to parse UUID", err)
+		return
+	}
+
+	chirp, err := cfg.db.GetChirpFromID(r.Context(), chirpID)
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, "ChirpID is not found in database", err)
+		return
+	}
+
+	if userID != chirp.UserID {
+		respondWithError(w, http.StatusForbidden, "UserID from token is different from API", err)
+		return
+	}
+
+	err = cfg.db.DeleteChirpFromID(r.Context(), chirpID)
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, "ChirpID is not found in database", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
