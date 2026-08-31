@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/Yishen1011/http_servers/internal/auth"
 	"github.com/Yishen1011/http_servers/internal/database"
 )
 
@@ -23,8 +24,18 @@ type Chirp struct {
 func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request){
     type parameters struct {
         Body string `json:"body"`
-		UserID uuid.UUID `json:"user_id"`
     }
+
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Couldn't find JWT", err)
+		return
+	}
+    userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Couldn't validate JWT", err)
+		return
+	}
 
 	type response struct {
 		Chirp
@@ -32,7 +43,7 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 
     decoder := json.NewDecoder(r.Body)
     params := parameters{}
-    err := decoder.Decode(&params)
+    err = decoder.Decode(&params)
     if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Something went wrong", err)
 		return
@@ -40,7 +51,7 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 
 	const maxChirpLength = 140
 	if len(params.Body) > maxChirpLength {
-		respondWithError(w, http.StatusBadRequest, "Chirp is too long", err)
+		respondWithError(w, http.StatusBadRequest, "Chirp is too long", nil)
 		return
 	}
 
@@ -53,7 +64,7 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 
 	args := database.CreateChirpParams{
 		Body:   cleaned,
-		UserID: params.UserID,
+		UserID: userID,
 	}
 
 	chirp, err := cfg.db.CreateChirp(r.Context(), args)
@@ -90,7 +101,7 @@ func filterBadWords(msg string, badWords map[string]struct{}) string {
 func (cfg *apiConfig) handlerListChirps(w http.ResponseWriter, r *http.Request){
 	dbChirps, err := cfg.db.GetChirps(r.Context())
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error: Listing Chirps", err)
+		respondWithError(w, http.StatusInternalServerError, "Listing Chirps", err)
 		return
 	}
 
@@ -124,7 +135,7 @@ func (cfg *apiConfig) handlerGetChirp(w http.ResponseWriter, r *http.Request){
 			respondWithError(w, http.StatusNotFound, "No Chirp found matching that ID", err)
 			return
 		}
-		respondWithError(w, http.StatusInternalServerError, "Error: Retrieving Chirp from ID", err)
+		respondWithError(w, http.StatusInternalServerError, "Retrieving Chirp from ID", err)
 		return
 	}
 

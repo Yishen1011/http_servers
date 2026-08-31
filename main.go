@@ -16,6 +16,7 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	db             *database.Queries
 	platform       string
+	jwtSecret     string
 }
 
 func main(){
@@ -37,12 +38,18 @@ func main(){
 		log.Fatal("In .env file PLATFORM must be set")
 	}
 
+	jwt_secret := os.Getenv("JWT_SECRET")
+	if jwt_secret == "" {
+		log.Fatal("In .env file JWT_SECRET must be set")
+	}
+
 	dbQueries := database.New(dbConn)
 
 	apiCfg := apiConfig{
 		fileserverHits: atomic.Int32{},
 		db:             dbQueries,
 		platform:       platform,
+		jwtSecret:     jwt_secret,
 	}
 
 	srvMux := http.NewServeMux()

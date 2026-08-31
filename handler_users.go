@@ -66,12 +66,14 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request){
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request){
     type parameters struct {
-		Password string `json:"password"`
-        Email string `json:"email"`
+		Password         string `json:"password"`
+        Email            string `json:"email"`
+		ExpiresInSeconds int64  `json:"expires_in_seconds"`
     }
 
 	type response struct {
 		User
+		Token string `json:"token"`
 	}
 
     decoder := json.NewDecoder(r.Body)
@@ -88,18 +90,28 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request){
 			respondWithError(w, http.StatusUnauthorized, "No user found matching that email", err)
 			return
 		}
-		respondWithError(w, http.StatusInternalServerError, "Error: Retrieving User from email", err)
+		respondWithError(w, http.StatusInternalServerError, "Retrieving User from email", err)
 		return
 	}
 
 	match, err := auth.CheckPasswordHash(params.Password, dbUser.HashedPassword)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error: Checking matching password in database", err)
+		respondWithError(w, http.StatusInternalServerError, "Checking matching password in database", err)
+		return
+	}
+	if !match {
+		respondWithError(w, http.StatusUnauthorized, "Incorrect password for this email", err)
 		return
 	}
 
-	if !match {
-		respondWithError(w, http.StatusUnauthorized, "Incorrect password for this email", err)
+	expirationTime := time.Hour
+	if params.ExpiresInSeconds > 0 && params.ExpiresInSeconds < 3600 {
+		expirationTime = time.Duration(params.ExpiresInSeconds) * time.Second
+	}
+
+	accessToken, err := auth.MakeJWT(dbUser.ID, cfg.jwtSecret, expirationTime)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't create access JWT", err)
 		return
 	}
 
@@ -110,5 +122,6 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request){
 			UpdatedAt:   dbUser.UpdatedAt,
 			Email:       dbUser.Email,
 		},
+		Token: accessToken,
 	})
 }
