@@ -34,7 +34,7 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request){
     params := parameters{}
     err := decoder.Decode(&params)
     if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Something went wrong", err)
+		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
 		return
     }
 
@@ -82,7 +82,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request){
     params := parameters{}
     err := decoder.Decode(&params)
     if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Something went wrong", err)
+		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
 		return
     }
 
@@ -163,7 +163,7 @@ func (cfg *apiConfig) handlerUpdateUserPW(w http.ResponseWriter, r *http.Request
     params := parameters{}
     err = decoder.Decode(&params)
     if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Something went wrong", err)
+		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
 		return
     }
 
@@ -196,7 +196,6 @@ func (cfg *apiConfig) handlerUpdateUserPW(w http.ResponseWriter, r *http.Request
 }
 
 func (cfg *apiConfig) handlerUpdateUserChirpyRed(w http.ResponseWriter, r *http.Request) {
-
 	type Data struct {
 		UserID string `json:"user_id"`
 	}
@@ -206,11 +205,22 @@ func (cfg *apiConfig) handlerUpdateUserChirpyRed(w http.ResponseWriter, r *http.
         Data  Data   `json:"data"`
     }
 
+	apiKey, err := auth.GetAPIKey(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Couldn't find ApiKey", err)
+		return
+	}
+
+	if apiKey != cfg.polkaKey {
+		respondWithError(w, http.StatusUnauthorized, "API key is invalid", err)
+		return
+	}
+
 	decoder := json.NewDecoder(r.Body)
     params := parameters{}
-    err := decoder.Decode(&params)
+    err = decoder.Decode(&params)
     if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Something went wrong", err)
+		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
 		return
     }
 
