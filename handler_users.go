@@ -13,10 +13,11 @@ import (
 )
 
 type User struct {
-	ID        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
+	ID          uuid.UUID `json:"id"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Email       string    `json:"email"`
+	IsChirpyRed bool      `json:"is_chirpy_red"`
 }
 
 func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request){
@@ -60,6 +61,7 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request){
 			CreatedAt:   user.CreatedAt,
 			UpdatedAt:   user.UpdatedAt,
 			Email:       user.Email,
+			IsChirpyRed: user.IsChirpyRed,
 		},
 	})
 }
@@ -128,13 +130,14 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request){
 			CreatedAt:   dbUser.CreatedAt,
 			UpdatedAt:   dbUser.UpdatedAt,
 			Email:       dbUser.Email,
+			IsChirpyRed: dbUser.IsChirpyRed,
 		},
 		Token: accessToken,
 		RefreshToken: refreshToken.Token,
 	})
 }
 
-func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) handlerUpdateUserPW(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Password         string `json:"password"`
         Email            string `json:"email"`
@@ -187,6 +190,55 @@ func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) 
 			CreatedAt:   user.CreatedAt,
 			UpdatedAt:   user.UpdatedAt,
 			Email:       user.Email,
+			IsChirpyRed: user.IsChirpyRed,
 		},
 	})
+}
+
+func (cfg *apiConfig) handlerUpdateUserChirpyRed(w http.ResponseWriter, r *http.Request) {
+
+	type Data struct {
+		UserID string `json:"user_id"`
+	}
+
+	type parameters struct {
+		Event string `json:"event"`
+        Data  Data   `json:"data"`
+    }
+
+	decoder := json.NewDecoder(r.Body)
+    params := parameters{}
+    err := decoder.Decode(&params)
+    if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Something went wrong", err)
+		return
+    }
+
+	if params.Event != "user.upgraded" {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	userID, err := uuid.Parse(params.Data.UserID)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid user_id", err)
+		return
+	}
+
+	args := database.UpdateChirpyRedFromIDParams{
+		ID:          userID,
+		IsChirpyRed: true,
+	}
+
+	_, err = cfg.db.UpdateChirpyRedFromID(r.Context(), args)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			respondWithError(w, http.StatusNotFound, "User not found", err)
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "User can't be updated", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
