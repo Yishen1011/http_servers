@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -20,6 +21,14 @@ type Chirp struct {
 	Body      string    `json:"body"`
 	UserID    uuid.UUID `json:"user_id"`
 }
+
+type SortingOrder int
+
+const (
+	Unknown SortingOrder = iota // 0
+	ASC                         // 1
+	DESC                        // 2
+)
 
 func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request){
     type parameters struct {
@@ -104,6 +113,12 @@ func (cfg *apiConfig) handlerListChirps(w http.ResponseWriter, r *http.Request){
 		respondWithError(w, http.StatusBadRequest, "Invalid author ID", err)
 		return
 	}
+
+	order, err := sortingOrderFromRequest(r)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid sorting order", err)
+		return
+	}
 	
 	var dbChirps []database.Chirp
 
@@ -115,6 +130,12 @@ func (cfg *apiConfig) handlerListChirps(w http.ResponseWriter, r *http.Request){
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't retrieve chirps", err)
 		return
+	}
+
+	if order == 1 {
+		sort.Slice(dbChirps, func(i, j int) bool { return dbChirps[i].CreatedAt.Before(dbChirps[j].CreatedAt) })
+	} else if order == 2 {
+		sort.Slice(dbChirps, func(i, j int) bool { return dbChirps[i].CreatedAt.After(dbChirps[j].CreatedAt) })
 	}
 
 	responseChirps := []Chirp{}
@@ -133,15 +154,28 @@ func (cfg *apiConfig) handlerListChirps(w http.ResponseWriter, r *http.Request){
 }
 
 func authorIDFromRequest(r *http.Request) (uuid.UUID, error) {
-	authorIDString := r.URL.Query().Get("author_id")
-	if authorIDString == "" {
+	strAuthorID := r.URL.Query().Get("author_id")
+	if strAuthorID == "" {
 		return uuid.Nil, nil
 	}
-	authorID, err := uuid.Parse(authorIDString)
+	authorID, err := uuid.Parse(strAuthorID)
 	if err != nil {
 		return uuid.Nil, err
 	}
 	return authorID, nil
+}
+
+func sortingOrderFromRequest(r *http.Request) (SortingOrder, error) {
+	sortOrder := strings.ToLower(r.URL.Query().Get("sort"))
+
+	switch sortOrder {
+	case "", "asc":
+		return ASC, nil
+	case "desc":
+		return DESC, nil
+	default:
+		return Unknown, errors.New("unrecognized sorting order")
+	}
 }
 
 func (cfg *apiConfig) handlerGetChirp(w http.ResponseWriter, r *http.Request){
