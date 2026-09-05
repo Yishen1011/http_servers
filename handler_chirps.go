@@ -99,9 +99,21 @@ func filterBadWords(msg string, badWords map[string]struct{}) string {
 }
 
 func (cfg *apiConfig) handlerListChirps(w http.ResponseWriter, r *http.Request){
-	dbChirps, err := cfg.db.GetChirps(r.Context())
+	authorID, err := authorIDFromRequest(r)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Listing Chirps", err)
+		respondWithError(w, http.StatusBadRequest, "Invalid author ID", err)
+		return
+	}
+	
+	var dbChirps []database.Chirp
+
+	if authorID != uuid.Nil {
+		dbChirps, err = cfg.db.GetChirpsFromUserID(r.Context(), authorID)
+	} else {
+		dbChirps, err = cfg.db.GetChirps(r.Context())
+	}
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't retrieve chirps", err)
 		return
 	}
 
@@ -118,6 +130,18 @@ func (cfg *apiConfig) handlerListChirps(w http.ResponseWriter, r *http.Request){
 	}
 
 	respondWithJSON(w, http.StatusOK, responseChirps)
+}
+
+func authorIDFromRequest(r *http.Request) (uuid.UUID, error) {
+	authorIDString := r.URL.Query().Get("author_id")
+	if authorIDString == "" {
+		return uuid.Nil, nil
+	}
+	authorID, err := uuid.Parse(authorIDString)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return authorID, nil
 }
 
 func (cfg *apiConfig) handlerGetChirp(w http.ResponseWriter, r *http.Request){
